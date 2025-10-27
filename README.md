@@ -198,12 +198,9 @@ GROUP BY 1, 2;
 - **Performance regression detection** built-in
 - **Query optimization** guidance included
 
-## 📚 Documentation
-
-- **[CLAUDE.md](CLAUDE.md)**: Complete project documentation and commands
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**: Common issues and solutions
-- **[100M-ROW-CHALLENGE-REPORT.md](100M-ROW-CHALLENGE-REPORT.md)**: Executive summary and achievements
-
+## 📚 Other References
+- **[The-100M-Row-Challenge-10-26](https://telegra.ph/The-100M-Row-Challenge-10-26)**
+  
 ## 🤝 Contributing
 
 This project demonstrates production-ready techniques for:
