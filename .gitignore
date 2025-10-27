@@ -1,0 +1,113 @@
+# EventAnalytics - Production .gitignore
+
+# === Development and Temporary Files ===
+.claude/
+*.tmp
+*.temp
+*~
+.DS_Store
+Thumbs.db
+
+# === Documentation Files ===
+# Only keep README.md for public repo - exclude all other markdown files
+*.md
+!README.md
+
+# === Build Outputs ===
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.user
+*.suo
+*.userprefs
+
+# === .NET/C# Specific ===
+packages/
+.vs/
+.vscode/settings.json
+*.csproj.user
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# === Database Files ===
+# Don't commit actual database files
+*.db
+*.sqlite
+*.sqlite3
+pgdata/
+postgres-data/
+
+# === Docker and Container Data ===
+# Persistent volumes should not be in repo
+docker-volumes/
+pgadmin-data/
+redis-data/
+
+# === Logs ===
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# === Environment and Secrets ===
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.key
+*.pem
+secrets/
+
+# === IDE and Editor Files ===
+*.swp
+*.swo
+*~
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/launch.json
+.vscode/tasks.json
+
+# === OS Generated Files ===
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# === Backup and Archive Files ===
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.archive
+*.zip
+*.tar.gz
+*.tar.bz2
+
+# === Performance Test Results ===
+# Keep summary reports, exclude detailed logs
+benchmark-results-detailed/
+perf-test-logs/
+load-test-outputs/
+
+# === Node.js (if added later) ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# === Generated Documentation ===
+# Keep manually written docs, exclude auto-generated
+docs/generated/
+api-docs/generated/

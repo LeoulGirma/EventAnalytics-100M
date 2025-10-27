@@ -1,0 +1,175 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: analytics_db
+    environment:
+      POSTGRES_DB: analytics
+      POSTGRES_USER: analytics_user
+      POSTGRES_PASSWORD: dev_password_123
+    
+    command:
+      - "postgres"
+      
+      # ==== MEMORY CONFIGURATION (Critical for 100M rows) ====
+      # shared_buffers: Cache for data pages (~25% of database size)
+      # PHASE 3 OPTIMIZATION: Increased to cover 25% of 41GB database
+      - "-c"
+      - "shared_buffers=10GB"
+
+      # effective_cache_size: Tells planner how much RAM OS has for caching
+      # PHASE 3 OPTIMIZATION: Increased for 100M+ rows performance
+      - "-c"
+      - "effective_cache_size=30GB"
+      
+      # work_mem: Memory for sorting/hashing per operation
+      # PHASE 3 OPTIMIZATION: Increased for 100M+ aggregations
+      - "-c"
+      - "work_mem=128MB"
+
+      # maintenance_work_mem: For VACUUM, CREATE INDEX, ALTER TABLE
+      # PHASE 3 OPTIMIZATION: Doubled for 100M+ maintenance operations
+      - "-c"
+      - "maintenance_work_mem=2GB"
+      
+      # ==== WRITE-AHEAD LOG (WAL) SETTINGS ====
+      # WAL is how Postgres ensures durability + enables PITR backups
+      # Bigger WAL = fewer checkpoints = smoother performance under load
+      - "-c"
+      - "max_wal_size=4GB"
+      
+      - "-c"
+      - "min_wal_size=1GB"
+      
+      # Checkpoint spread: Avoid I/O spikes when writing dirty pages
+      # 0.9 = spread checkpoint over 90% of time between checkpoints
+      - "-c"
+      - "checkpoint_completion_target=0.9"
+      
+      # ==== QUERY EXECUTION (Leverage your 4 cores) ====
+      # Parallel workers for large scans/aggregations
+      # PHASE 3 OPTIMIZATION: Doubled for 100M+ parallel processing
+      - "-c"
+      - "max_parallel_workers_per_gather=4"
+
+      - "-c"
+      - "max_parallel_workers=8"
+      
+      - "-c"
+      - "max_worker_processes=8"
+      
+      # ==== SSD/NVME OPTIMIZATIONS ====
+      # random_page_cost: Cost estimate for random I/O
+      # Default is 4.0 (HDD era). NVME? 1.1 is more accurate
+      # This makes query planner prefer index scans more often
+      - "-c"
+      - "random_page_cost=1.1"
+      
+      # effective_io_concurrency: Parallel I/O operations
+      # NVME can handle many concurrent reads
+      - "-c"
+      - "effective_io_concurrency=200"
+      
+      # ==== AUTOVACUUM TUNING ====
+      # At scale, dead tuples accumulate fast. Aggressive autovacuum prevents bloat
+      - "-c"
+      - "autovacuum_max_workers=3"
+      
+      - "-c"
+      - "autovacuum_naptime=10s"
+      
+      # Start vacuum after 2% of table changes (default is 20%)
+      - "-c"
+      - "autovacuum_vacuum_scale_factor=0.02"
+      
+      - "-c"
+      - "autovacuum_analyze_scale_factor=0.01"
+      
+      # ==== MONITORING & DEBUGGING ====
+      # pg_stat_statements: Track query performance
+      # You'll use this to find slow queries
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      
+      - "-c"
+      - "pg_stat_statements.track=all"
+      
+      - "-c"
+      - "pg_stat_statements.max=10000"
+      
+      # Log slow queries (> 1 second)
+      # At scale, this will show you which queries need optimization
+      - "-c"
+      - "log_min_duration_statement=1000"
+      
+      - "-c"
+      - "log_line_prefix=%m [%p] %u@%d "
+      
+      # Log autovacuum activity (helpful for debugging bloat)
+      - "-c"
+      - "log_autovacuum_min_duration=0"
+    
+    volumes:
+      # Persist data between restarts
+      - pgdata:/var/lib/postgresql/data
+      
+      # Auto-run schema on first startup
+      - ./scripts/01-init-schema.sql:/docker-entrypoint-initdb.d/01-init-schema.sql
+      - ./scripts/02-create-partitions.sql:/docker-entrypoint-initdb.d/02-create-partitions.sql
+      - ./scripts/03-monitoring-setup.sql:/docker-entrypoint-initdb.d/03-monitoring-setup.sql
+    
+    ports:
+      - "5432:5432"
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analytics_user -d analytics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+    # Optional: Limit container resources to simulate prod constraints
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '3'
+    #       memory: 6G
+
+  # Redis for caching query results
+  redis:
+    image: redis:7-alpine
+    container_name: analytics_cache
+    ports:
+      - "6379:6379"
+    command: 
+      - redis-server
+      - --maxmemory 512mb
+      - --maxmemory-policy allkeys-lru
+      - --save ""  # Disable RDB snapshots (cache only)
+    
+  # pgAdmin: Visual query analyzer and performance monitoring
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: analytics_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@analytics.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
+volumes:
+  pgdata:
+    driver: local
+  pgadmin-data:
+    driver: local
+
+networks:
+  default:
+    name: analytics_network
